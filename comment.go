@@ -5,14 +5,39 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 )
 
-func Find(dir string, finder Finder) error {
+func Find(dir string, all bool, finder Finder) error {
 	if finder == nil {
 		finder = printFinder{}
 	}
+	dirs := []string{dir}
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			dirs = append(dirs, path.Join(dir, file.Name()))
+		}
+	}
+	var i int
+	for i, dir = range dirs {
+		if err := find(dir, finder); err != nil {
+			return err
+		}
+		if i == 0 && !all {
+			break
+		}
+	}
+	return nil
+}
+
+func find(dir string, finder Finder) error {
 	fileSet := token.NewFileSet()
 	packages, err := parser.ParseDir(fileSet, dir, func(info os.FileInfo) bool {
 		name := info.Name()

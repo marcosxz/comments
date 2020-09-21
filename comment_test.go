@@ -33,7 +33,7 @@ func TestFind(t *testing.T) {
 		t.Error(err)
 		t.FailNow()
 	}
-	if err = Find(dir, nil); err != nil {
+	if err = Find(dir, true, nil); err != nil {
 		t.Error(err)
 		t.FailNow()
 	}

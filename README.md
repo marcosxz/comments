@@ -10,5 +10,5 @@ func (printFinder) Type(comments TypeComments) error {  ...  }
 func (printFinder) Field(comments FieldComments) error {  ...  }
 
 // 调用查找注释的方法
-_ = comments.Find(dir, finder)
+_ = comment.Find(dir, true, nil)
 ```
