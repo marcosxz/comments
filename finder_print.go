@@ -50,6 +50,9 @@ func (printFinder) Type(comments TypeComments) error {
 func (printFinder) Field(comments FieldComments) error {
 	docs := ""
 	for _, field := range comments.Fields.List {
+		if len(field.Names) == 0 {
+			continue
+		}
 		docs += field.Names[0].Name + ":"
 		if field.Doc.Text() != "" {
 			docs += field.Doc.Text()
