@@ -7,29 +7,30 @@ import (
 
 type Finder interface {
 	Filter(os.FileInfo) bool
+	Package(PackageComments) error
 	Func(FuncComments) error
 	Type(TypeComments) error
 	Field(FieldComments) error
 }
 
-type FuncComments struct {
-	Package  string
+type PackageComments struct {
 	Filepath string
-	FuncName string
-	Caller   string
-	FuncDecl *ast.FuncDecl
+	Pkg      *ast.Package
+	File     *ast.File
+}
+
+type FuncComments struct {
+	PackageComments
+	Func *ast.FuncDecl
 }
 
 type TypeComments struct {
-	Package  string
-	Filepath string
-	TypeName string
-	GenDecl  *ast.GenDecl
+	PackageComments
+	Decl *ast.GenDecl
+	Type *ast.TypeSpec
 }
 
 type FieldComments struct {
-	Package  string
-	Filepath string
-	TypeName string
-	Fields   *ast.FieldList
+	TypeComments
+	Fields *ast.FieldList
 }

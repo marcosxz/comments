@@ -1,7 +1,6 @@
 package comments
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -11,7 +10,7 @@ import (
 	"strings"
 )
 
-func Find(dir string, all bool, finder Finder) error {
+func AstFind(dir string, all bool, finder Finder) error {
 	if finder == nil {
 		finder = printFinder{}
 	}
@@ -27,10 +26,10 @@ func Find(dir string, all bool, finder Finder) error {
 	}
 	var i int
 	for i, dir = range dirs {
-		if err := find(dir, finder); err != nil {
+		if err = find(dir, finder); err != nil {
 			return err
 		}
-		if i == 0 && !all {
+		if !all && i == 0 {
 			break
 		}
 	}
@@ -46,60 +45,74 @@ func find(dir string, finder Finder) error {
 	if err != nil {
 		return err
 	}
-	for pkgName, pkg := range packages {
-		for filename, file := range pkg.Files {
-			ast.Inspect(file, func(node ast.Node) bool {
-				//ast.Print(fileSet, node)
-				switch n := node.(type) {
+	for _, pkg := range packages {
+		for filepath, file := range pkg.Files {
+			if err = packageComments(finder, pkg, file, filepath); err != nil {
+				return err
+			}
+			for _, decl := range file.Decls {
+				switch x := decl.(type) {
 				case *ast.FuncDecl: // func declaration
-					comments := FuncComments{
-						Package:  pkgName,
-						Filepath: filename,
-						FuncName: n.Name.Name,
-						FuncDecl: n,
-					}
-					if n.Recv.NumFields() > 0 {
-						t := n.Recv.List[0].Type
-						switch t.(type) {
-						case *ast.Ident: // not pointer call
-							comments.Caller = t.(*ast.Ident).Name
-						case *ast.StarExpr: // the pointer call
-							comments.Caller = fmt.Sprint(t.(*ast.StarExpr).X)
-						}
-					}
-					if err = finder.Func(comments); err != nil {
-						return false
+					if err = funcComments(finder, pkg, file, filepath, x); err != nil {
+						return err
 					}
 				case *ast.GenDecl: // import, constant, type or variable declaration
-					for _, spec := range n.Specs {
-						switch t := spec.(type) {
-						case *ast.TypeSpec:
-							if err = finder.Type(TypeComments{
-								Package:  pkgName,
-								Filepath: filename,
-								TypeName: t.Name.Name,
-								GenDecl:  n,
-							}); err != nil {
-								return false
-							}
-							switch s := t.Type.(type) {
-							case *ast.StructType:
-								if err = finder.Field(FieldComments{
-									Package:  pkgName,
-									Filepath: filename,
-									TypeName: t.Name.Name,
-									Fields:   s.Fields,
-								}); err != nil {
-									return false
-								}
-							}
-						}
+					if err = typeAndFieldComments(finder, pkg, file, filepath, x); err != nil {
+						return err
 					}
 				}
-				return true
-			})
-			if err != nil {
+			}
+		}
+	}
+	return nil
+}
+
+func packageComments(finder Finder, pkg *ast.Package, file *ast.File, filepath string) error {
+	return finder.Package(PackageComments{
+		Filepath: filepath,
+		Pkg:      pkg,
+		File:     file,
+	})
+}
+
+func funcComments(finder Finder, pkg *ast.Package, file *ast.File, filepath string, decl *ast.FuncDecl) error {
+	pkgComments := PackageComments{
+		Filepath: filepath,
+		Pkg:      pkg,
+		File:     file,
+	}
+	return finder.Func(FuncComments{
+		PackageComments: pkgComments,
+		Func:            decl,
+	})
+}
+
+func typeAndFieldComments(finder Finder, pkg *ast.Package, file *ast.File, filepath string, decl *ast.GenDecl) error {
+	pkgComments := PackageComments{
+		Filepath: filepath,
+		Pkg:      pkg,
+		File:     file,
+	}
+	for _, spec := range decl.Specs {
+		switch x := spec.(type) {
+		case *ast.TypeSpec:
+			typeComments := TypeComments{
+				PackageComments: pkgComments,
+				Decl:            decl,
+				Type:            x,
+			}
+			if err := finder.Type(typeComments); err != nil {
 				return err
+			}
+			switch ex := x.Type.(type) {
+			case *ast.StructType:
+				fieldComments := FieldComments{
+					TypeComments: typeComments,
+					Fields:       ex.Fields,
+				}
+				if err := finder.Field(fieldComments); err != nil {
+					return err
+				}
 			}
 		}
 	}

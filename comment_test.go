@@ -1,3 +1,4 @@
+// @Package
 package comments
 
 import (
@@ -23,17 +24,17 @@ type test struct {
 }
 
 // @FuncName FuncA
-func (*test) FuncA(i int) error {
+func (test) FuncA(i int) error {
 	return nil
 }
 
-func TestFind(t *testing.T) {
+func TestAstFind(t *testing.T) {
 	dir, err := os.Getwd()
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
 	}
-	if err = Find(dir, true, nil); err != nil {
+	if err = AstFind(dir, true, nil); err != nil {
 		t.Error(err)
 		t.FailNow()
 	}
